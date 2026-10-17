@@ -227,7 +227,7 @@ function CaseStudies() {
   );
 }
 
-function WhyExodus() {
+function WhyTruevine() {
   const items = [
     {
       title: 'Shipped in weeks, not quarters.',
@@ -365,4 +365,4 @@ function Footer() {
   );
 }
 
-Object.assign(window, { Nav, Hero, Services, CaseStudies, WhyExodus, FAQ, FinalCTA, Footer });
+Object.assign(window, { Nav, Hero, Services, CaseStudies, WhyTruevine, FAQ, FinalCTA, Footer });
