@@ -56,8 +56,8 @@ function Hero({ onBook, headline }) {
             <a href="#services" className="cta-btn ghost">Follow the vine</a>
           </div>
           <div className="hero-stats">
-            <div className="hero-stat"><strong>500+</strong><span>hours saved a month</span></div>
-            <div className="hero-stat"><strong>20+</strong><span>businesses automated</span></div>
+            <div className="hero-stat"><strong>30 days</strong><span>from kickoff to working system</span></div>
+            <div className="hero-stat"><strong>2 weeks</strong><span>to your first working demo</span></div>
             <div className="hero-stat"><strong>24/7</strong><span>always-on systems</span></div>
           </div>
           <p className="hero-note">No long-term contracts. Results in weeks, not months.</p>
@@ -201,7 +201,7 @@ function CaseStudies() {
       id="work"
       flip
       title="Real companies, verified outcomes."
-      kicker="Four public case studies from Forrester, Ada, moinAI and independent research. These are the same kinds of systems we build for our clients."
+      kicker="Four public case studies from Forrester, Ada, moinAI and independent research. The kinds of systems we build — documented public results using the same tools and approaches."
     >
       {cases.map((c) => (
         <article key={c.who} className="item" data-vine-node="36">
@@ -356,7 +356,7 @@ function Footer() {
             <a href="#work">Results</a>
             <a href="#why">Why us</a>
             <a href="#faq">Questions</a>
-            <a href="mailto:noah.williams@truevineautomations.com">noah.williams@truevineautomations.com</a>
+            <a href="mailto:noahwilliams@truevineautomation.com">noahwilliams@truevineautomation.com</a>
           </nav>
         </div>
         <div className="footer-bottom">© 2026 Truevine Automation</div>

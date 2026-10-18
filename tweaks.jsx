@@ -1,5 +1,5 @@
 // Tweaks panel + shared headline data
-const { useState: useStateT, useEffect: useEffectT } = React;
+const { useState: useStateT } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "headline": "grow",
@@ -14,23 +14,10 @@ const HEADLINES = {
 };
 
 function Tweaks({ state, setState }) {
-  const [open, setOpen] = useStateT(false);
-
-  useEffectT(() => {
-    const onMsg = (e) => {
-      const d = e.data;
-      if (!d || typeof d !== 'object') return;
-      if (d.type === '__activate_edit_mode') setOpen(true);
-      if (d.type === '__deactivate_edit_mode') setOpen(false);
-    };
-    window.addEventListener('message', onMsg);
-    try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch (e) {}
-    return () => window.removeEventListener('message', onMsg);
-  }, []);
+  const [open] = useStateT(false);
 
   const update = (key, val) => {
     setState({ ...state, [key]: val });
-    try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: val } }, '*'); } catch (e) {}
   };
 
   if (!open) return null;
