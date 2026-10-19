@@ -1,18 +1,61 @@
-// Booking modal — fake Calendly-style picker
+// Booking modal — Calendly-style picker that books straight into the Truevine CRM.
 const { useState, useEffect, useMemo } = React;
 
 // Requests are emailed through FormSubmit. The first one triggers a one-time activation email to this address.
 const BOOKING_EMAIL = 'noahwilliams@truevineautomation.com';
 const BOOKING_ENDPOINT = `https://formsubmit.co/ajax/${BOOKING_EMAIL}`;
 
+// Truevine CRM (Supabase). Same values as the CRM's config.js. The public "anon" key is safe here:
+// the database only lets it book a free slot and see which times are taken.
+// While these are placeholders, bookings are only emailed, like before.
+const CRM_URL = 'https://YOUR-PROJECT.supabase.co';
+const CRM_KEY = 'YOUR-ANON-KEY';
+const CRM_ON = !/YOUR-/.test(CRM_URL + CRM_KEY);
+
+// Slots are Eastern time (Orlando), whatever the visitor's own time zone is.
+const TZ = 'America/New_York';
+function easternTime(day, hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const guess = Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), h, m);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric',
+  }).formatToParts(new Date(guess)).map((x) => [x.type, x.value]));
+  const shown = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+  return new Date(guess - (shown - guess));
+}
+const slotLabel = (hhmm) => {
+  const [h, m] = hhmm.split(':').map(Number);
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+};
+
+async function crmCall(fn, args) {
+  const res = await fetch(`${CRM_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: CRM_KEY, Authorization: `Bearer ${CRM_KEY}` },
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) throw new Error(`crm ${res.status}`);
+  return res.json();
+}
+
+const CRM_ERRORS = {
+  slot_taken: 'Someone just booked that time. Please pick another one.',
+  bad_time: 'That time is no longer available. Please pick another one.',
+  bad_email: 'Please check your email address.',
+  bad_phone: 'Please check your phone number, or leave it empty.',
+  too_many: `You've already booked a few times today. Email ${BOOKING_EMAIL} and we'll sort it out.`,
+};
+
 function BookingModal({ open, onClose, prefill }) {
   const [step, setStep] = useState(1); // 1: date/time, 2: details, 3: success
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [monthOffset, setMonthOffset] = useState(0);
-  const [form, setForm] = useState({ name: '', email: '', company: '', goal: '' });
+  const blankForm = { name: '', email: '', phone: '', company: '', goal: '', consent: false, website: '' };
+  const [form, setForm] = useState(blankForm);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
+  const [taken, setTaken] = useState(new Set());
 
   useEffect(() => {
     if (!open) {
@@ -20,7 +63,7 @@ function BookingModal({ open, onClose, prefill }) {
       const t = setTimeout(() => {
         setSending(false); setSendError('');
         setStep(1); setSelectedDate(null); setSelectedSlot(null); setMonthOffset(0);
-        setForm({ name: '', email: '', company: '', goal: '' });
+        setForm(blankForm);
       }, 300);
       return () => clearTimeout(t);
     }
@@ -35,6 +78,17 @@ function BookingModal({ open, onClose, prefill }) {
 
   const now = new Date();
   const viewDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+
+  // Grey out times already booked in the CRM for the month on screen.
+  const loadTaken = () => {
+    if (!CRM_ON) return;
+    const from = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+    const to = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 2);
+    crmCall('booked_slots', { p_from: from.toISOString(), p_to: to.toISOString() })
+      .then((rows) => setTaken(new Set(rows.map((r) => new Date(r).getTime()))))
+      .catch(() => {});
+  };
+  useEffect(() => { if (open) loadTaken(); }, [open, monthOffset]);
   const monthName = viewDate.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   const days = useMemo(() => {
@@ -60,17 +114,18 @@ function BookingModal({ open, onClose, prefill }) {
   };
 
   const slots = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+  const slotOpen = (d, s) => {
+    const t = easternTime(d, s).getTime();
+    return t > Date.now() + 60 * 60 * 1000 && !taken.has(t);
+  };
   const summary = selectedDate && selectedSlot
-    ? `${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${selectedSlot}`
+    ? `${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${slotLabel(selectedSlot)} Eastern`
     : 'No time picked yet';
 
   const canProceedStep1 = selectedDate && selectedSlot;
   const canSubmit = form.name && form.email && form.goal;
 
-  const sendBooking = async () => {
-    setSending(true);
-    setSendError('');
-    try {
+  const emailBooking = async () => {
       const res = await fetch(BOOKING_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -80,12 +135,44 @@ function BookingModal({ open, onClose, prefill }) {
           'Requested time': summary,
           name: form.name,
           email: form.email,
+          phone: form.phone || 'Not given',
+          'OK to call or text': form.phone && form.consent ? 'Yes' : 'No',
           company: form.company || 'Not given',
           'Wants to automate': form.goal,
+          'Saved in CRM': CRM_ON ? 'Yes' : 'No (CRM not set up yet)',
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || String(data.success) !== 'true') throw new Error('send failed');
+  };
+
+  const sendBooking = async () => {
+    setSending(true);
+    setSendError('');
+    try {
+      if (CRM_ON) {
+        let result = null;
+        try {
+          result = await crmCall('submit_booking', {
+            p_name: form.name, p_email: form.email, p_goal: form.goal,
+            p_starts_at: easternTime(selectedDate, selectedSlot).toISOString(),
+            p_phone: form.phone, p_company: form.company, p_consent: form.consent, p_website: form.website,
+          });
+        } catch (e) {
+          result = null; // CRM unreachable: fall back to email so the lead isn't lost
+        }
+        if (result && !result.ok) {
+          setSendError(CRM_ERRORS[result.error] || `We couldn't book that. Please try again, or email ${BOOKING_EMAIL}.`);
+          if (result.error === 'slot_taken' || result.error === 'bad_time') { setSelectedSlot(null); setStep(1); loadTaken(); }
+          return;
+        }
+        if (result) {
+          emailBooking().catch(() => {}); // heads-up email to Noah; the CRM already has it
+          setStep(3);
+          return;
+        }
+      }
+      await emailBooking();
       setStep(3);
     } catch (e) {
       setSendError(`We couldn't send your request. Check your connection and try again, or email ${BOOKING_EMAIL}.`);
@@ -147,6 +234,7 @@ function BookingModal({ open, onClose, prefill }) {
                   <>
                     <p className="modal-step">Step 1 of 2</p>
                     <h4>Pick a date and time</h4>
+                    {sendError && <p className="send-error" role="alert">{sendError}</p>}
                     <div className="cal-month-head">
                       <div className="month">{monthName}</div>
                       <div className="cal-nav">
@@ -187,11 +275,12 @@ function BookingModal({ open, onClose, prefill }) {
                         </div>
                         <div className="slots">
                           {slots.map((s) => (
-                            <button key={s} className={`slot ${selectedSlot === s ? 'selected' : ''}`} onClick={() => setSelectedSlot(s)}>
-                              {s}
+                            <button key={s} className={`slot ${selectedSlot === s ? 'selected' : ''}`} disabled={!slotOpen(selectedDate, s)} onClick={() => setSelectedSlot(s)}>
+                              {slotLabel(s)}
                             </button>
                           ))}
                         </div>
+                        <p className="slots-note">Times are Eastern (Orlando).</p>
                       </>
                     )}
                   </>
@@ -208,6 +297,20 @@ function BookingModal({ open, onClose, prefill }) {
                     <div className="form-row">
                       <label>Work email *</label>
                       <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jane@company.com" />
+                    </div>
+                    <div className="form-row">
+                      <label>Phone</label>
+                      <input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="(407) 555-0123" />
+                    </div>
+                    {form.phone && (
+                      <label className="consent-row">
+                        <input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} />
+                        <span>It's OK for Truevine Automation to call or text me at this number about my booking and its services, including automated or AI-assisted calls and texts. Not required to book. Reply STOP to opt out.</span>
+                      </label>
+                    )}
+                    <div className="form-row hp" aria-hidden="true">
+                      <label>Website</label>
+                      <input type="text" tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
                     </div>
                     <div className="form-row">
                       <label>Company</label>
