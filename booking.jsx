@@ -2,7 +2,7 @@
 const { useState, useEffect, useMemo } = React;
 
 // Requests are emailed through FormSubmit. The first one triggers a one-time activation email to this address.
-const BOOKING_EMAIL = 'noah.williams@truevineautomations.com';
+const BOOKING_EMAIL = 'noahwilliams@truevineautomation.com';
 const BOOKING_ENDPOINT = `https://formsubmit.co/ajax/${BOOKING_EMAIL}`;
 
 // Truevine CRM (Supabase). Same values as the CRM's config.js. The public "anon" key is safe here:
