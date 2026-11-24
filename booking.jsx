@@ -8,8 +8,8 @@ const BOOKING_ENDPOINT = `https://formsubmit.co/ajax/${BOOKING_EMAIL}`;
 // Truevine CRM (Supabase). Same values as the CRM's config.js. The public "anon" key is safe here:
 // the database only lets it book a free slot and see which times are taken.
 // While these are placeholders, bookings are only emailed, like before.
-const CRM_URL = 'https://YOUR-PROJECT.supabase.co';
-const CRM_KEY = 'YOUR-ANON-KEY';
+const CRM_URL = 'https://tnurmdwfocprsuouzgys.supabase.co';
+const CRM_KEY = 'sb_publishable_GM4oG4DTfpvKgwmDsFDNhA_XCnlSFJs';
 const CRM_ON = !/YOUR-/.test(CRM_URL + CRM_KEY);
 
 // Slots are Eastern time (Orlando), whatever the visitor's own time zone is.
