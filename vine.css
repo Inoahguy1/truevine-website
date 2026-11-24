@@ -555,3 +555,11 @@ body { background: #fff; line-height: 1.5; }
   .modal, .modal-backdrop.open { animation: none; }
   .vine-layer *, .vine-ready [data-vine-node], .faq-a, .faq-q .plus::after { transition: none !important; }
 }
+
+/* Booking: times already taken, time zone note, call/text consent, hidden anti-spam field */
+.slot:disabled { opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
+.slot:disabled:hover { border-color: var(--border-hi); background: transparent; }
+.slots-note { margin-top: 10px; font-size: 13px; color: var(--dim); }
+.consent-row { display: flex; gap: 10px; align-items: flex-start; margin: -4px 0 16px; font-size: 13px; line-height: 1.5; color: var(--dim); }
+.consent-row input { margin-top: 3px; flex: none; accent-color: var(--violet); }
+.form-row.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

@@ -356,7 +356,7 @@ function Footer() {
             <a href="#work">Results</a>
             <a href="#why">Why us</a>
             <a href="#faq">Questions</a>
-            <a href="mailto:noahwilliams@truevineautomation.com">noahwilliams@truevineautomation.com</a>
+            <a href="mailto:noah.williams@truevineautomation.com">noah.williams@truevineautomation.com</a>
           </nav>
         </div>
         <div className="footer-bottom">© 2026 Truevine Automation</div>
